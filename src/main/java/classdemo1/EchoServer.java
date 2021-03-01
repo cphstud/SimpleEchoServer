@@ -102,19 +102,25 @@ public class EchoServer {
     }
 
     private void runServer(int port) throws IOException {
+        int counter=0;
+        int limit=3;
         MyLoader ml = new MyLoader();
         ml.myLoading("WTEST");
         ServerSocket ss = new ServerSocket(port);
-        Socket client = ss.accept();
-        ClientHandler cl = new ClientHandler(client,ml);
-        cl.greeting();
-        cl.protocol();
+        while(counter < limit) {
+            counter++;
+            Socket client = ss.accept();
+            ClientHandler cl = new ClientHandler(client,ml);
+            cl.start();
+            //cl.greeting();
+            //cl.protocol();
+        }
         // pass this to clienthandler
 
     }
 }
 
-class ClientHandler {
+class ClientHandler extends Thread{
     // socket, in and out channel
     Socket client;
     BufferedReader br;
@@ -139,11 +145,25 @@ class ClientHandler {
         }
     }
 
+    @Override
+    public void run() {
+        try {
+            this.greeting();
+            this.protocol();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+
+    public void goodBye() throws IOException {
+        pw.println("Goodbye My Friend. ");
+        pw.close();
+        br.close();
+    }
     public void greeting() throws IOException {
         pw.println("Hello My Friend. What is your name?");
         this.name = br.readLine();
-
-
         //pw.println("Well Hello " + name);
         pw.printf("Well Hello %s", name);
         //pw.close();
@@ -163,6 +183,7 @@ class ClientHandler {
             pw.println("Great. Now what?");
             input = br.readLine();
         }
+        goodBye();
     }
 
     private void handleGeo() {
