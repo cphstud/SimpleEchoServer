@@ -49,8 +49,17 @@ public class EchoServer {
     public static final int DEFAULT_PORT = 2345;
 
     public static void main(String[] args) {
+        int port = 8188;
+        if (args.length == 1) {
+            port = Integer.parseInt(args[0]);
+        }
         EchoServer echoServer = new EchoServer();
-        echoServer.runServer();
+        echoServer.runServer(port);
+
+    }
+
+    private void runServer(int port) {
+        
 
     }
 }
