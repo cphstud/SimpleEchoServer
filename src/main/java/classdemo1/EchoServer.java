@@ -50,9 +50,7 @@ class MyLoader {
     }
 
     public void myLoading(String uri) throws IOException {
-        // load from file-system resource
         String line = "";
-        //File f = new File(uri);
         // load from classloader resource
         ClassLoader classLoader = ClassLoader.getSystemClassLoader();
         InputStream is = classLoader.getResourceAsStream(uri);
@@ -105,7 +103,7 @@ public class EchoServer {
 
     private void runServer(int port) throws IOException {
         MyLoader ml = new MyLoader();
-        ml.myLoading("Test");
+        ml.myLoading("WTEST");
         ServerSocket ss = new ServerSocket(port);
         Socket client = ss.accept();
         ClientHandler cl = new ClientHandler(client,ml);
@@ -122,10 +120,16 @@ class ClientHandler {
     BufferedReader br;
     PrintWriter pw;
     MyLoader ml;
+    String name;
+    int playerID;
+    int points;
+    static int id=0;
 
     public ClientHandler(Socket client, MyLoader ml) {
         this.client = client;
         this.ml = ml;
+        this.playerID = id++;
+        this.points = 0;
         try {
             pw = new PrintWriter(client.getOutputStream(),true);
             br = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -136,9 +140,10 @@ class ClientHandler {
     }
 
     public void greeting() throws IOException {
-        String name = "";
         pw.println("Hello My Friend. What is your name?");
-        name = br.readLine();
+        this.name = br.readLine();
+
+
         //pw.println("Well Hello " + name);
         pw.printf("Well Hello %s", name);
         //pw.close();
@@ -146,15 +151,35 @@ class ClientHandler {
     }
 
     public void protocol() throws IOException {
+        //200	WORLD CAPITALS	Beethoven's birthplace, it's now West Germany's capital	Bonn
         pw.println("Hvad kunne du godt tænke dig?");
         String input = br.readLine();
         while (!input.equals("Bye")) {
             switch (input) {
-                case "GEO":String q = ml.getOne();pw.println(q);break;
+                //case "GEO":String q = ml.getOne();pw.println(q);break;
+                case "GEO":handleGeo();break;
                 default:String def = ml.getOne();pw.println(def);
             }
             pw.println("Great. Now what?");
             input = br.readLine();
+        }
+    }
+
+    private void handleGeo() {
+        String q = ml.getOne();
+        String[] qArr = q.split("\t");
+        pw.println(qArr[2]);
+        try {
+            String ans = br.readLine();
+            if (ans.equalsIgnoreCase(qArr[3])) {
+                points +=Integer.parseInt(qArr[0]);
+                pw.println("Well done " + points);
+            } else {
+                pw.println("To bad");
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
