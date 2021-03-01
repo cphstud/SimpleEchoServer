@@ -1,5 +1,7 @@
 package classdemo1;
 
+import org.junit.jupiter.api.Test;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,5 +20,10 @@ class MyLoaderTest {
     @org.junit.jupiter.api.Test
     void myLoader() throws IOException {
         ml.myLoading("Test");
+    }
+
+    @Test
+    void playWithIO() throws IOException {
+        ml.playWithIO();
     }
 }
