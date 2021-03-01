@@ -12,8 +12,7 @@ class MyLoaderTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        input = new ArrayList<>();
-        ml = new MyLoader(input);
+        ml = new MyLoader();
     }
 
     @org.junit.jupiter.api.Test

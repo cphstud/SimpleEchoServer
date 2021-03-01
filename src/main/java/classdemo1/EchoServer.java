@@ -8,8 +8,9 @@ import java.util.*;
 
 class MyLoader {
     List<String> myStuff;
-    public MyLoader(List<String> myStuff) {
-        this.myStuff = myStuff;
+
+    public MyLoader() {
+        this.myStuff = new LinkedList<>();
     }
 
     public void myLoading(String uri) throws IOException {
@@ -43,6 +44,10 @@ class MyLoader {
         bw.close();
         fw.close();
     }
+
+    public String getOne() {
+        return myStuff.remove(myStuff.size()-1);
+    }
 }
 
 public class EchoServer {
@@ -63,10 +68,13 @@ public class EchoServer {
     }
 
     private void runServer(int port) throws IOException {
+        MyLoader ml = new MyLoader();
+        ml.myLoading("Test");
         ServerSocket ss = new ServerSocket(port);
         Socket client = ss.accept();
-        ClientHandler cl = new ClientHandler(client);
+        ClientHandler cl = new ClientHandler(client,ml);
         cl.greeting();
+        cl.protocol();
         // pass this to clienthandler
 
     }
@@ -77,9 +85,11 @@ class ClientHandler {
     Socket client;
     BufferedReader br;
     PrintWriter pw;
+    MyLoader ml;
 
-    public ClientHandler(Socket client) {
+    public ClientHandler(Socket client, MyLoader ml) {
         this.client = client;
+        this.ml = ml;
         try {
             pw = new PrintWriter(client.getOutputStream(),true);
             br = new BufferedReader(new InputStreamReader(client.getInputStream()));
@@ -95,7 +105,20 @@ class ClientHandler {
         name = br.readLine();
         //pw.println("Well Hello " + name);
         pw.printf("Well Hello %s", name);
-        pw.close();
-        br.close();
+        //pw.close();
+        //br.close();
+    }
+
+    public void protocol() throws IOException {
+        pw.println("Hvad kunne du godt tænke dig?");
+        String input = br.readLine();
+        while (!input.equals("Bye")) {
+            switch (input) {
+                case "GEO":String q = ml.getOne();pw.println(q);break;
+                default:String def = ml.getOne();pw.println(def);
+            }
+            pw.println("Great. Now what?");
+            input = br.readLine();
+        }
     }
 }
