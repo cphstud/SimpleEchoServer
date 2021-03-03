@@ -113,7 +113,8 @@ public class EchoServer {
     }
 
     private void runServer(int port) throws IOException {
-        Dispatcher dispatcher  = new Dispatcher();
+        BlockingQueue<String> messages = new ArrayBlockingQueue<>(250);
+        Dispatcher dispatcher  = new Dispatcher(messages);
         int counter=0;
         int limit=3;
         MyLoader ml = new MyLoader();
@@ -127,7 +128,7 @@ public class EchoServer {
             BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
             PrintWriter pw = new PrintWriter(client.getOutputStream(),true);
             dispatcher.addClientWriter(pw);
-            ClientHandler cl = new ClientHandler(br,pw,ml,dispatcher);
+            ClientHandler cl = new ClientHandler(br,pw,ml,messages);
             //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
 
             cl.start();
@@ -148,9 +149,9 @@ class Dispatcher extends Thread {
     BlockingQueue<PrintWriter> allWriteToClientLine;
     BlockingQueue<String> allMessages;
 
-    public Dispatcher() {
+    public Dispatcher(BlockingQueue<String> msgQueue) {
         allWriteToClientLine = new ArrayBlockingQueue<PrintWriter>(200);
-        allMessages = new ArrayBlockingQueue<String>(10);
+        allMessages = msgQueue;
     }
 
     public void addClientWriter(PrintWriter pw) {
@@ -170,7 +171,7 @@ class Dispatcher extends Thread {
         }
     }
 
-    public void sendMessageToAll(String msg) {
+    private void sendMessageToAll(String msg) {
         for (PrintWriter pw : allWriteToClientLine) {
             pw.println(msg);
         }
@@ -183,7 +184,8 @@ class ClientHandler extends Thread{
     BufferedReader br;
     PrintWriter pw;
     MyLoader ml;
-    Dispatcher dispatcher;
+    BlockingQueue<String> allMessages;
+    //Dispatcher dispatcher;
 
     String name;
     int playerID;
@@ -191,7 +193,10 @@ class ClientHandler extends Thread{
     static int id=0;
 
     public ClientHandler(Socket client, MyLoader ml,  Dispatcher dispatcher) {
-        this.client = client;
+
+    }
+    public ClientHandler(Socket client, MyLoader ml,  BlockingQueue<String> allMessages) {
+        this.allMessages = allMessages;
         this.ml = ml;
         this.playerID = id++;
         this.points = 0;
@@ -204,13 +209,13 @@ class ClientHandler extends Thread{
         }
     }
 
-    public ClientHandler(BufferedReader br, PrintWriter pw, MyLoader ml,  Dispatcher dispatcher) {
+    public ClientHandler(BufferedReader br, PrintWriter pw, MyLoader ml,  BlockingQueue<String> allMessages) {
         this.ml = ml;
         this.playerID = id++;
         this.points = 0;
         this.br = br;
         this.pw = pw;
-        this.dispatcher = dispatcher;
+        this.allMessages = allMessages;
     }
 
 
@@ -260,7 +265,8 @@ class ClientHandler extends Thread{
         pw.println("Hvad vil du sende ud?");
         String msg = br.readLine();
         // TODO: Hvordan sender jeg det til alle forbundne klienter?
-        dispatcher.sendMessageToAll(msg);
+        //dispatcher.sendMessageToAll(msg);
+        allMessages.add(msg);
     }
 
     private void handleGeo() {
