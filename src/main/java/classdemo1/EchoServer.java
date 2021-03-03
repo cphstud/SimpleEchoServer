@@ -21,6 +21,7 @@ class MyLoader {
         InputStream is = classLoader.getResourceAsStream("output");
         URL url = classLoader.getResource("output");
         File f = new File("src/main/resources/output");
+        File f2 = new File("src/main/resources/output.bin");
         //FileReader fr = new FileReader(f);
         Reader fr = new FileReader(f);
         System.out.printf("%c\n",fr.read());
@@ -49,6 +50,15 @@ class MyLoader {
         //System.out.println(res4);
         int res5 = is.read();
         System.out.println(res5);
+
+        //OutputStream out = new DataOutputStream(new FileOutputStream(f2));
+        int x = 75;
+        DataOutputStream out = new DataOutputStream(new FileOutputStream(f2));
+        out.writeInt(x);
+        out.writeChar(x);
+        out.close();
+
+
     }
 
     public void myLoading(String uri) throws IOException {
