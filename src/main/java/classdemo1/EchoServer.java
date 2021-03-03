@@ -1,5 +1,7 @@
 package classdemo1;
 
+import org.apache.ibatis.javassist.bytecode.analysis.Executor;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -7,6 +9,8 @@ import java.net.URL;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 
 class MyLoader {
@@ -113,10 +117,11 @@ public class EchoServer {
     }
 
     private void runServer(int port) throws IOException {
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
         BlockingQueue<String> messages = new ArrayBlockingQueue<>(250);
         Dispatcher dispatcher  = new Dispatcher(messages);
         int counter=0;
-        int limit=3;
+        int limit=300;
         MyLoader ml = new MyLoader();
         ml.myLoading("WTEST");
         ServerSocket ss = new ServerSocket(port);
@@ -130,8 +135,8 @@ public class EchoServer {
             dispatcher.addClientWriter(pw);
             ClientHandler cl = new ClientHandler(br,pw,ml,messages);
             //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
-
-            cl.start();
+            executorService.execute(cl);
+            //cl.start();
             //cl.greeting();
             //cl.protocol();
         }
@@ -178,7 +183,7 @@ class Dispatcher extends Thread {
     }
 }
 
-class ClientHandler extends Thread{
+class ClientHandler implements Runnable{
     // socket, in and out channel
     Socket client;
     BufferedReader br;
