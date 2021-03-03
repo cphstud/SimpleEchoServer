@@ -5,6 +5,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.util.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 
 class MyLoader {
@@ -79,7 +81,7 @@ class MyLoader {
         fw.close();
     }
 
-    public String getOne() {
+    public synchronized String getOne() {
         return myStuff.remove(myStuff.size()-1);
     }
 }
@@ -98,19 +100,26 @@ public class EchoServer {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     private void runServer(int port) throws IOException {
+        Dispatcher dispatcher  = new Dispatcher();
         int counter=0;
         int limit=3;
         MyLoader ml = new MyLoader();
         ml.myLoading("WTEST");
         ServerSocket ss = new ServerSocket(port);
+        dispatcher.start();
         while(counter < limit) {
+            System.out.println("Waiting  ..." + counter);
             counter++;
             Socket client = ss.accept();
-            ClientHandler cl = new ClientHandler(client,ml);
+            BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
+            PrintWriter pw = new PrintWriter(client.getOutputStream(),true);
+            dispatcher.addClientWriter(pw);
+            ClientHandler cl = new ClientHandler(br,pw,ml,dispatcher);
+            //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
+
             cl.start();
             //cl.greeting();
             //cl.protocol();
@@ -120,18 +129,58 @@ public class EchoServer {
     }
 }
 
+class Dispatcher extends Thread {
+    // den skal lytte til  køen .. altså en tråd
+    // datastruktur hvor den lytter på en kø til beskeder
+    // datastruktur hvor den kan finde alle klienter (og tilføje og slette)
+    //List<Socket> allClients;
+    //List<PrintWriter> allWriteToClientLine;
+    BlockingQueue<PrintWriter> allWriteToClientLine;
+    BlockingQueue<String> allMessages;
+
+    public Dispatcher() {
+        allWriteToClientLine = new ArrayBlockingQueue<PrintWriter>(200);
+        allMessages = new ArrayBlockingQueue<String>(10);
+    }
+
+    public void addClientWriter(PrintWriter pw) {
+        allWriteToClientLine.add(pw);
+    }
+
+    @Override
+    public void run() {
+        while (true) {
+            // take element and send it to all clients
+            try {
+                String head = allMessages.take();
+                sendMessageToAll(head);
+            } catch (InterruptedException ie) {
+                ie.printStackTrace();
+            }
+        }
+    }
+
+    public void sendMessageToAll(String msg) {
+        for (PrintWriter pw : allWriteToClientLine) {
+            pw.println(msg);
+        }
+    }
+}
+
 class ClientHandler extends Thread{
     // socket, in and out channel
     Socket client;
     BufferedReader br;
     PrintWriter pw;
     MyLoader ml;
+    Dispatcher dispatcher;
+
     String name;
     int playerID;
     int points;
     static int id=0;
 
-    public ClientHandler(Socket client, MyLoader ml) {
+    public ClientHandler(Socket client, MyLoader ml,  Dispatcher dispatcher) {
         this.client = client;
         this.ml = ml;
         this.playerID = id++;
@@ -144,6 +193,16 @@ class ClientHandler extends Thread{
             e.printStackTrace();
         }
     }
+
+    public ClientHandler(BufferedReader br, PrintWriter pw, MyLoader ml,  Dispatcher dispatcher) {
+        this.ml = ml;
+        this.playerID = id++;
+        this.points = 0;
+        this.br = br;
+        this.pw = pw;
+        this.dispatcher = dispatcher;
+    }
+
 
     @Override
     public void run() {
@@ -178,12 +237,20 @@ class ClientHandler extends Thread{
             switch (input) {
                 //case "GEO":String q = ml.getOne();pw.println(q);break;
                 case "GEO":handleGeo();break;
+                case "ALL":handleMsgToAll();break;
                 default:String def = ml.getOne();pw.println(def);
             }
             pw.println("Great. Now what?");
             input = br.readLine();
         }
         goodBye();
+    }
+
+    private void handleMsgToAll() throws IOException {
+        pw.println("Hvad vil du sende ud?");
+        String msg = br.readLine();
+        // TODO: Hvordan sender jeg det til alle forbundne klienter?
+        dispatcher.sendMessageToAll(msg);
     }
 
     private void handleGeo() {
