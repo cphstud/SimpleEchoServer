@@ -1,5 +1,7 @@
 package classdemo1;
 
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
+
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -97,6 +99,8 @@ class MyLoader {
 }
 
 public class EchoServer {
+    BlockingQueue<String> messages = new ArrayBlockingQueue<>(250);
+    Dispatcher dispatcher  = new Dispatcher(messages);
     public static final int DEFAULT_PORT = 2345;
 
     public static void main(String[] args) {
@@ -113,8 +117,6 @@ public class EchoServer {
     }
 
     private void runServer(int port) throws IOException {
-        BlockingQueue<String> messages = new ArrayBlockingQueue<>(250);
-        Dispatcher dispatcher  = new Dispatcher(messages);
         int counter=0;
         int limit=3;
         MyLoader ml = new MyLoader();
@@ -125,17 +127,32 @@ public class EchoServer {
             System.out.println("Waiting  ..." + counter);
             counter++;
             Socket client = ss.accept();
-            BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
-            PrintWriter pw = new PrintWriter(client.getOutputStream(),true);
-            dispatcher.addClientWriter(pw);
-            ClientHandler cl = new ClientHandler(br,pw,ml,messages);
+            // create info
+            if (login(client)) {
+                System.out.println("Client logged in");
+
+            }
+
+
             //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
 
-            cl.start();
             //cl.greeting();
             //cl.protocol();
         }
         // pass this to clienthandler
+
+    }
+
+    private boolean login(Socket client) {
+        try {
+            BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
+            PrintWriter pw = new PrintWriter(client.getOutputStream(), true);
+            dispatcher.addClientWriter(pw);
+            ClientHandler cl = new ClientHandler(br, pw, messages);
+            cl.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
     }
 }
@@ -193,6 +210,11 @@ class ClientHandler extends Thread{
     static int id=0;
 
     public ClientHandler(Socket client, MyLoader ml,  Dispatcher dispatcher) {
+        this.playerID = id++;
+        this.points = 0;
+        this.br = br;
+        this.pw = pw;
+        this.allMessages = allMessages;
 
     }
     public ClientHandler(Socket client, MyLoader ml,  BlockingQueue<String> allMessages) {
@@ -216,6 +238,10 @@ class ClientHandler extends Thread{
         this.br = br;
         this.pw = pw;
         this.allMessages = allMessages;
+    }
+
+    public ClientHandler(BufferedReader br, PrintWriter pw, BlockingQueue<String> messages) {
+
     }
 
 
