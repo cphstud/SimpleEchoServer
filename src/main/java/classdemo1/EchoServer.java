@@ -1,8 +1,5 @@
 package classdemo1;
 
-
-import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -138,6 +135,10 @@ public class EchoServer {
             BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
             PrintWriter pw = new PrintWriter(client.getOutputStream(), true);
             String loginLine = br.readLine();
+            if (loginLine == null) {
+                client.close();
+            } else {
+
             String token = loginLine.split("#")[0];
             String content = loginLine.split("#")[1];
             if (token.equals("CONNECT")) {
@@ -150,6 +151,7 @@ public class EchoServer {
             //ClientHandler cl = new ClientHandler(br, pw, messages);
             ClientHandler cl = new ClientHandler(content, br, pw, ml, messages);
             cl.start();
+            }
         }
         //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
 
@@ -165,10 +167,12 @@ class Dispatcher extends Thread {
     // datastruktur hvor den kan finde alle klienter (og tilføje og slette)
     //List<Socket> allClients;
     //List<PrintWriter> allWriteToClientLine;
+    //ConcurrentMap<String,PrintWriter> allNamePrintWriters;
     ConcurrentMap<String,PrintWriter> allNamePrintWriters;
     ConcurrentMap<String,Socket> allNamedSockets;
     BlockingQueue<PrintWriter> allWriteToClientLine;
     BlockingQueue<String> allMessages;
+    //BlockingQueue<Message> allMessages;
     BlockingQueue<String> allUsers;
 
     public Dispatcher(BlockingQueue<String> messages, ConcurrentMap<String,PrintWriter> allNamePrintWriters) {
