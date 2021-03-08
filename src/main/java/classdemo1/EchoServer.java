@@ -5,10 +5,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URL;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.*;
 
 
 class MyLoader {
@@ -121,6 +118,8 @@ public class EchoServer {
 
     private void runServer(int port) throws IOException {
         ConcurrentMap<String,Socket> clients = new ConcurrentHashMap<>() ;
+        ExecutorService executorService = Executors.newFixedThreadPool(5);
+
         int counter=0;
         int limit=3;
         MyLoader ml = new MyLoader();
@@ -139,18 +138,20 @@ public class EchoServer {
                 client.close();
             } else {
 
-            String token = loginLine.split("#")[0];
-            String content = loginLine.split("#")[1];
-            if (token.equals("CONNECT")) {
-                //dispatcher.addClientWriter(pw);
-                //clients.put(content,client);
-                messages.add(loginLine);
-                dispatcher2.addSocketToList(content,client);
-                dispatcher2.addClientToNamedWriter(content, pw);
-            }
-            //ClientHandler cl = new ClientHandler(br, pw, messages);
-            ClientHandler cl = new ClientHandler(content, br, pw, ml, messages);
-            cl.start();
+                String token = loginLine.split("#")[0];
+                String content = loginLine.split("#")[1];
+                if (token.equals("CONNECT")) {
+                    //dispatcher.addClientWriter(pw);
+                    //clients.put(content,client);
+                    messages.add(loginLine);
+                    dispatcher2.addSocketToList(content,client);
+                    dispatcher2.addClientToNamedWriter(content, pw);
+                }
+                //ClientHandler cl = new ClientHandler(br, pw, messages);
+                ClientHandler cl = new ClientHandler(content, br, pw, ml, messages);
+                System.out.println("Add to executor ..");
+                executorService.execute(cl);
+                //cl.start();
             }
         }
         //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
@@ -162,15 +163,8 @@ public class EchoServer {
 }
 
 class Dispatcher extends Thread {
-    // den skal lytte til  køen .. altså en tråd
-    // datastruktur hvor den lytter på en kø til beskeder
-    // datastruktur hvor den kan finde alle klienter (og tilføje og slette)
-    //List<Socket> allClients;
-    //List<PrintWriter> allWriteToClientLine;
-    //ConcurrentMap<String,PrintWriter> allNamePrintWriters;
     ConcurrentMap<String,PrintWriter> allNamePrintWriters;
     ConcurrentMap<String,Socket> allNamedSockets;
-    BlockingQueue<PrintWriter> allWriteToClientLine;
     BlockingQueue<String> allMessages;
     //BlockingQueue<Message> allMessages;
     BlockingQueue<String> allUsers;
@@ -179,17 +173,6 @@ class Dispatcher extends Thread {
         this.allNamePrintWriters = allNamePrintWriters;
         this.allNamedSockets = new ConcurrentHashMap<>();
         allMessages = messages;
-    }
-
-    public Dispatcher(BlockingQueue<String> msgQueue) {
-        allWriteToClientLine = new ArrayBlockingQueue<PrintWriter>(200);
-        allMessages = msgQueue;
-    }
-
-    public Dispatcher(BlockingQueue<String> messages, BlockingQueue<String> users) {
-        allWriteToClientLine = new ArrayBlockingQueue<PrintWriter>(200);
-        allMessages = messages;
-        allUsers = users;
     }
 
     public void addSocketToList(String name, Socket socket) {
@@ -207,10 +190,6 @@ class Dispatcher extends Thread {
         allNamePrintWriters.remove(name);
     }
 
-    public void addClientWriter(PrintWriter pw) {
-        allWriteToClientLine.add(pw);
-    }
-
     public void addUser(String user) {
         allUsers.add(user);
     }
@@ -225,7 +204,6 @@ class Dispatcher extends Thread {
             // take element and send it to all clients
             try {
                 String head = allMessages.take();
-                //sendMessageToAll(head);
                 sendMessage(head);
             } catch (InterruptedException ie) {
                 ie.printStackTrace();
@@ -235,6 +213,7 @@ class Dispatcher extends Thread {
 
     private void sendMessage(String head) {
         //SEND#Per,Kurt#Hej Kurtbasse -> MESSAGE#Per#Hej Kurtbasse (til Kurts pw)
+        System.out.println(Thread.currentThread().getName() + " is in " + head);
         StringBuilder sb = new StringBuilder();
         String[] content = head.split("#");
         if (content[0].equals("CONNECT")) {
@@ -249,10 +228,10 @@ class Dispatcher extends Thread {
             allNamePrintWriters.remove(content[1]);
             try {
                 allNamedSockets.get(content[1]).close();
+                allNamedSockets.remove(content[1]);
             } catch (IOException e) {
                 e.printStackTrace();
             }
-
         } else {
             sb.append("MESSAGE#");
         }
@@ -267,7 +246,7 @@ class Dispatcher extends Thread {
             // find printwriters
             sb.append(recipients[0]);
             sb.append("#");
-            sb.append(content);
+            sb.append(content[2]);
             for (int i = 1; i < recipients.length; i++) {
                 if (allNamePrintWriters.containsKey(recipients[i])) {
                     allNamePrintWriters.get(recipients[i]).println(sb.toString());
@@ -275,15 +254,9 @@ class Dispatcher extends Thread {
             }
         }
     }
-
-    private void sendMessageToAll(String msg) {
-        for (PrintWriter pw : allWriteToClientLine) {
-            pw.println(msg);
-        }
-    }
 }
 
-class ClientHandler extends Thread{
+class ClientHandler implements Runnable{
     // socket, in and out channel
     Socket client;
     BufferedReader br;
@@ -339,6 +312,7 @@ class ClientHandler extends Thread{
         this.br = br;
         this.pw = pw;
         this.allMessages = allMessages;
+        this.name = name;
     }
 
     public ClientHandler(BufferedReader br, PrintWriter pw, BlockingQueue<String> allMessages, BlockingQueue<String> users) {
@@ -375,29 +349,29 @@ class ClientHandler extends Thread{
 
     public void protocol() throws IOException {
         //200	WORLD CAPITALS	Beethoven's birthplace, it's now West Germany's capital	Bonn
+        boolean go = true;
         pw.println("Velkommenn kunne du godt tænke dig?");
         String input = "";
-        input = br.readLine();
-        if (input == null) {
-            input = "CLOSE";
-        }
-        inputArr = input.split("#");
-        String token = inputArr[0];
-        String[] subsetArr = Arrays.copyOfRange(inputArr, 1, inputArr.length);
-        String content = String.join("#",subsetArr);
-        // get recipients
+        while (go) {
+            input = br.readLine();
+            if (input == null) {
+                input = "CLOSE";
+            }
+            inputArr = input.split("#");
+            String token = inputArr[0];
+            String[] subsetArr = Arrays.copyOfRange(inputArr, 1, inputArr.length);
+            String content = String.join("#",subsetArr);
+            // get recipients
 
-        while (!token.equals("Bye")) {
             switch (token) {
                 //case "GEO":String q = ml.getOne();pw.println(q);break;
                 // case "TOSOME": TOSOME#Kurt,Verner#Her bor Otto
                 case "GEO":handleGeo();break;
                 case "SEND":handleMsgToSome(content, token);break;
-                case "CLOSE":handleMsgToSome(content, token);break;
-                default:handleMsgToSome("0","CLOSE");
+                case "CLOSE":handleMsgToSome(content, token);go=false;break;
+                default:handleMsgToSome("0","CLOSE");go=false;
             }
             pw.println("Great. Now what?");
-            input = br.readLine();
         }
         goodBye();
     }
@@ -407,7 +381,7 @@ class ClientHandler extends Thread{
         //SEND#Per,Kurt#Hej Kurtbasse -> MESSAGE#Per#Hej Kurtbasse (til Kurts pw)
         //SEND#Per,Kurt,Verner#Hej venner -> MESSAGE#Per#Hej Venner (til Kurts pw)
         //                                -> MESSAGE#Per#Hej Venner (til Verners pw)
-        allMessages.add(token+"#"+name+content);
+        allMessages.add(token+"#"+name+","+content);
     }
 
     private void handleMsgToAll() throws IOException { pw.println("Hvad vil du sende ud?");

@@ -4,10 +4,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 class DispatcherTest {
     /*
@@ -19,22 +23,41 @@ class DispatcherTest {
 
      */
     BlockingQueue<String> allMsg;
-    String msg;
+    ConcurrentMap<String, PrintWriter> allNamedPrintwriters;
+    ConcurrentMap<String, Socket> allNamedSockets;
+    String msg,msg2;
     Thread testThread;
-    PrintWriter pw;
+    PrintWriter pw,pw2;
+    Socket s,s2;
 
     @BeforeEach
     void setUp() {
+        s = mock(Socket.class);
+        s2 = mock(Socket.class);
+        allNamedPrintwriters = new ConcurrentHashMap<>();
+        allNamedSockets = new ConcurrentHashMap<>();
         allMsg = new ArrayBlockingQueue<>(240);
         msg = "SEND#Kurt,Lone#Hej med dig";
-        pw = new PrintWriter(System.out);
-        Dispatcher dispatcher = new Dispatcher(allMsg);
+        msg2 = "CLOSE#Kurt,";
+        pw = new PrintWriter(System.out,true);
+        pw2 = new PrintWriter(System.out,true);
+        allNamedPrintwriters.put("Kurt",pw);
+        allNamedPrintwriters.put("Lone",pw2);
+        Dispatcher dispatcher = new Dispatcher(allMsg,allNamedPrintwriters);
+        dispatcher.addSocketToList("Kurt",s);
+        dispatcher.addSocketToList("Lone",s2);
         testThread = new Thread(dispatcher);
     }
 
     @Test
     void testWriteMessag() {
         testThread.start();
+        allMsg.add(msg);
+    }
+    @Test
+    void testCloseMessage() {
+        testThread.start();
+        allMsg.add(msg2);
     }
 
 }
