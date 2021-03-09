@@ -14,14 +14,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 class DispatcherTest {
-    /*
-     public Dispatcher(BlockingQueue<String> messages, ConcurrentMap<String,PrintWriter> allNamePrintWriters) {
-     this.allNamePrintWriters = allNamePrintWriters;
-     this.allNamedSockets = new ConcurrentHashMap<>();
-     allMessages = messages;
- }
-
-     */
     BlockingQueue<String> allMsg;
     ConcurrentMap<String, PrintWriter> allNamedPrintwriters;
     ConcurrentMap<String, Socket> allNamedSockets;

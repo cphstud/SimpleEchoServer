@@ -99,7 +99,6 @@ public class EchoServer {
     BlockingQueue<String> messages = new ArrayBlockingQueue<>(250);
     BlockingQueue<String> users = new ArrayBlockingQueue<>(250);
     ConcurrentMap<String, PrintWriter> allNamedPrintwriters = new ConcurrentHashMap<>();
-    //Dispatcher dispatcher  = new Dispatcher(messages, users);
     Dispatcher dispatcher2  = new Dispatcher(messages, allNamedPrintwriters);
     public static final int DEFAULT_PORT = 2345;
 
@@ -137,28 +136,18 @@ public class EchoServer {
             if (loginLine == null) {
                 client.close();
             } else {
-
                 String token = loginLine.split("#")[0];
                 String content = loginLine.split("#")[1];
                 if (token.equals("CONNECT")) {
-                    //dispatcher.addClientWriter(pw);
-                    //clients.put(content,client);
                     messages.add(loginLine);
                     dispatcher2.addSocketToList(content,client);
                     dispatcher2.addClientToNamedWriter(content, pw);
                 }
-                //ClientHandler cl = new ClientHandler(br, pw, messages);
                 ClientHandler cl = new ClientHandler(content, br, pw, ml, messages);
                 System.out.println("Add to executor ..");
                 executorService.execute(cl);
-                //cl.start();
             }
         }
-        //ClientHandler cl = new ClientHandler(client,ml,dispatcher);
-
-        //cl.greeting();
-        //cl.protocol();
-        // pass this to clienthandler
     }
 }
 
@@ -166,7 +155,6 @@ class Dispatcher extends Thread {
     ConcurrentMap<String,PrintWriter> allNamePrintWriters;
     ConcurrentMap<String,Socket> allNamedSockets;
     BlockingQueue<String> allMessages;
-    //BlockingQueue<Message> allMessages;
     BlockingQueue<String> allUsers;
 
     public Dispatcher(BlockingQueue<String> messages, ConcurrentMap<String,PrintWriter> allNamePrintWriters) {
@@ -256,53 +244,17 @@ class Dispatcher extends Thread {
 }
 
 class ClientHandler implements Runnable{
-    // socket, in and out channel
     Socket client;
     BufferedReader br;
     PrintWriter pw;
     MyLoader ml;
     BlockingQueue<String> allMessages;
-    BlockingQueue<String> users;
-    ConcurrentMap<Integer,String> allMessagesMap;
-    ConcurrentMap<String,Integer> allUsersMap;
-    //Dispatcher dispatcher;
 
     String name;
     String[] inputArr;
     int playerID;
     int points;
     static int id=0;
-
-    public ClientHandler(BufferedReader br, PrintWriter pw, ConcurrentMap<Integer,String> allMessages, ConcurrentMap<String,Integer> allUsers) {
-        this.ml = ml;
-        this.playerID = id++;
-        this.points = 0;
-        this.br = br;
-        this.pw = pw;
-        this.allMessagesMap = allMessages;
-        this.allUsersMap = allUsers;
-    }
-
-    public ClientHandler(Socket client, MyLoader ml,  Dispatcher dispatcher) {
-        this.playerID = id++;
-        this.points = 0;
-        this.br = br;
-        this.pw = pw;
-        //this.allMessages = allMessages;
-    }
-    public ClientHandler(Socket client, MyLoader ml,  BlockingQueue<String> allMessages) {
-        //this.allMessages = allMessages;
-        this.ml = ml;
-        this.playerID = id++;
-        this.points = 0;
-        try {
-            pw = new PrintWriter(client.getOutputStream(),true);
-            br = new BufferedReader(new InputStreamReader(client.getInputStream()));
-        } catch (IOException e) {
-            // skal håndteres
-            e.printStackTrace();
-        }
-    }
 
     public ClientHandler(String name, BufferedReader br, PrintWriter pw, MyLoader ml,  BlockingQueue<String> allMessages) {
         this.ml = ml;
@@ -314,14 +266,6 @@ class ClientHandler implements Runnable{
         this.name = name;
     }
 
-    public ClientHandler(BufferedReader br, PrintWriter pw, BlockingQueue<String> allMessages, BlockingQueue<String> users) {
-        this.playerID = id++;
-        this.points = 0;
-        this.br = br;
-        this.pw = pw;
-        this.allMessages = allMessages;
-    }
-
     @Override
     public void run() {
         try {
@@ -329,32 +273,15 @@ class ClientHandler implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-    }
-
-    public void goodBye() throws IOException {
-        pw.println("Goodbye My Friend. ");
-        pw.close();
-        br.close();
-    }
-    public void greeting() throws IOException {
-        pw.println("Hello My Friend. What is your name?");
-        this.name = br.readLine();
-        //pw.println("Well Hello " + name);
-        pw.printf("Well Hello %s", name);
-        //pw.close();
-        //br.close();
     }
 
     public void protocol() throws IOException {
-        //200	WORLD CAPITALS	Beethoven's birthplace, it's now West Germany's capital	Bonn
         boolean go = true;
-        pw.println("Velkommenn kunne du godt tænke dig?");
         String input = "";
         while (go) {
             input = br.readLine();
             if (input == null) {
-                input = "CLOSE";
+                input = "CLOSE#1";
             }
             inputArr = input.split("#");
             String token = inputArr[0];
@@ -363,48 +290,16 @@ class ClientHandler implements Runnable{
             // get recipients
 
             switch (token) {
-                //case "GEO":String q = ml.getOne();pw.println(q);break;
-                // case "TOSOME": TOSOME#Kurt,Verner#Her bor Otto
-                case "GEO":handleGeo();break;
                 case "SEND":handleMsgToSome(content, token);break;
                 case "CLOSE":handleMsgToSome(content, token);go=false;break;
                 default:handleMsgToSome("0","CLOSE");go=false;
             }
-            pw.println("Great. Now what?");
         }
-        goodBye();
     }
-
     private void handleMsgToSome(String content, String token) {
-        //SEND#Kurt#Hej Kurtbasse
-        //SEND#Per,Kurt#Hej Kurtbasse -> MESSAGE#Per#Hej Kurtbasse (til Kurts pw)
-        //SEND#Per,Kurt,Verner#Hej venner -> MESSAGE#Per#Hej Venner (til Kurts pw)
-        //                                -> MESSAGE#Per#Hej Venner (til Verners pw)
-        allMessages.add(token+"#"+name+","+content);
-    }
-
-    private void handleMsgToAll() throws IOException { pw.println("Hvad vil du sende ud?");
-        String msg = br.readLine();
-        // TODO: Hvordan sender jeg det til alle forbundne klienter?
-        //dispatcher.sendMessageToAll(msg);
-        allMessages.add(msg);
-    }
-
-    private void handleGeo() {
-        String q = ml.getOne();
-        String[] qArr = q.split("\t");
-        pw.println(qArr[2]);
-        try {
-            String ans = br.readLine();
-            if (ans.equalsIgnoreCase(qArr[3])) {
-                points +=Integer.parseInt(qArr[0]);
-                pw.println("Well done " + points);
-            } else {
-                pw.println("To bad");
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        String comma = "";
+        if (content.length()>1) comma=",";
+        String output = String.format("%s#%s%s%s%n",token,name,comma,content);
+        allMessages.add(output);
     }
 }

@@ -11,16 +11,8 @@ import java.util.concurrent.BlockingQueue;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ClientHandlerTest {
-    /*
-    BlockingQueue<String> users = new ArrayBlockingQueue<>(250);
-    ConcurrentMap<String, PrintWriter> allNamedPrintwriters = new ConcurrentHashMap<>();
-    //Dispatcher dispatcher  = new Dispatcher(messages, users);
-    Dispatcher dispatcher2  = new Dispatcher(messages, allNamedPrintwriters);
-    public static final int DEFAULT_PORT = 2345;
-     */
     BlockingQueue<String> messages;
     ClientHandler cl;
-    Dispatcher dispatcher;
     BufferedReader br;
     PrintWriter pw;
     Thread t;
@@ -36,8 +28,12 @@ class ClientHandlerTest {
         cl = new ClientHandler(content, br, pw, ml, messages);
         t = new Thread(cl);
     }
-     @Test
-    void testClientSendMsg() {
+    @Test
+    void testClientSendMsg() throws InterruptedException {
         t.start();
-     }
+        t.join(1000);
+        int expected=2;
+        int actual = messages.size();
+        assertEquals(expected,actual);
+    }
 }
