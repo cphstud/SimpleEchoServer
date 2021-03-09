@@ -25,7 +25,7 @@ class DispatcherTest {
     BlockingQueue<String> allMsg;
     ConcurrentMap<String, PrintWriter> allNamedPrintwriters;
     ConcurrentMap<String, Socket> allNamedSockets;
-    String msg,msg2;
+    String msg,msg2,msg3;
     Thread testThread;
     PrintWriter pw,pw2;
     Socket s,s2;
@@ -38,7 +38,8 @@ class DispatcherTest {
         allNamedSockets = new ConcurrentHashMap<>();
         allMsg = new ArrayBlockingQueue<>(240);
         msg = "SEND#Kurt,Lone#Hej med dig";
-        msg2 = "CLOSE#Kurt,";
+        msg2 = "CLOSE#Kurt";
+        msg3 = "CONNECT#Kurt";
         pw = new PrintWriter(System.out,true);
         pw2 = new PrintWriter(System.out,true);
         allNamedPrintwriters.put("Kurt",pw);
@@ -58,6 +59,12 @@ class DispatcherTest {
     void testCloseMessage() {
         testThread.start();
         allMsg.add(msg2);
+    }
+
+    @Test
+    void testConnectMessage() {
+        testThread.start();
+        allMsg.add(msg3);
     }
 
 }

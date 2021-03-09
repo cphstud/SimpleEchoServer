@@ -232,16 +232,15 @@ class Dispatcher extends Thread {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-        } else {
+        } else if (content[1].contains("*")) {
             sb.append("MESSAGE#");
-        }
-        if (content[1].contains("*")) {
             sb.append(head);
             // send to all
             for (PrintWriter pw : allNamePrintWriters.values()) {
                 pw.println(head);
             }
         } else {
+            sb.append("MESSAGE#");
             String[] recipients = content[1].split(",");
             // find printwriters
             sb.append(recipients[0]);
